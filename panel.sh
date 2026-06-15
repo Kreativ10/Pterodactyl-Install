@@ -828,7 +828,7 @@ install_composer() {
         error "Composer installer signature verification failed!"
     fi
 
-    php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer > /dev/null 2>&1
+    php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
     rm -f /tmp/composer-setup.php
 
     if command -v composer &>/dev/null; then
@@ -872,8 +872,7 @@ install_composer_deps() {
         --no-dev \
         --optimize-autoloader \
         --working-dir="$PANEL_DIR" \
-        --no-interaction \
-        > /dev/null 2>&1
+        --no-interaction
 
     success "Composer dependencies installed."
 }
