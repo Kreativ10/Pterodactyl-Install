@@ -832,7 +832,7 @@ install_composer() {
     rm -f /tmp/composer-setup.php
 
     if command -v composer &>/dev/null; then
-        success "Composer installed: $(composer --version 2>/dev/null | head -1)"
+        success "Composer installed successfully."
     else
         error "Composer installation failed."
     fi
@@ -892,7 +892,7 @@ configure() {
     fi
 
     # Generate application key
-    php "${PANEL_DIR}/artisan" key:generate --force --no-interaction > /dev/null 2>&1
+    php "${PANEL_DIR}/artisan" key:generate --force --no-interaction
     success "Application key generated."
 
     # Environment setup
@@ -908,8 +908,7 @@ configure() {
         --redis-pass="" \
         --redis-port=6379 \
         --settings-ui=true \
-        --no-interaction \
-        > /dev/null 2>&1 || {
+        --no-interaction || {
             warning "Environment setup command encountered an issue, continuing..."
         }
     success "Environment configured."
@@ -918,8 +917,7 @@ configure() {
     if [[ "$ENABLE_TELEMETRY" == "true" ]]; then
         php "${PANEL_DIR}/artisan" p:environment:setup \
             --telemetry=true \
-            --no-interaction \
-            > /dev/null 2>&1 || true
+            --no-interaction || true
     fi
 
     # Database configuration
@@ -930,13 +928,12 @@ configure() {
         --database="${DB_NAME}" \
         --username="${DB_USER}" \
         --password="${DB_PASS}" \
-        --no-interaction \
-        > /dev/null 2>&1
+        --no-interaction
     success "Database connection configured."
 
     # Run migrations
     output "Running database migrations..."
-    php "${PANEL_DIR}/artisan" migrate --seed --force --no-interaction > /dev/null 2>&1
+    php "${PANEL_DIR}/artisan" migrate --seed --force --no-interaction
     success "Database migrations completed."
 
     # Create admin user
@@ -948,8 +945,7 @@ configure() {
         --name-last="${ADMIN_LAST}" \
         --password="${ADMIN_PASS}" \
         --admin=1 \
-        --no-interaction \
-        > /dev/null 2>&1
+        --no-interaction
     success "Admin user '${ADMIN_USER}' created."
 }
 
