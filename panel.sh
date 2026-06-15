@@ -93,7 +93,7 @@ error() {
 }
 
 warning() {
-    echo -e "${YELLOW}[!] WARNING:${RESET} ${WHITE}$1${RESET}"
+    echo -e "${YELLOW}[!] WARNING:${RESET} ${WHITE}$1${RESET}" >&2
 }
 
 print_brake() {
@@ -116,16 +116,20 @@ print_header() {
 # INPUT HELPER FUNCTIONS
 ###############################################################################
 
+# All input functions use printf -v to set the caller's variable directly.
+# Prompts are printed to stderr so they always appear on the terminal.
+
 required_input() {
     local prompt="$1"
     local default="$2"
+    local varname="$3"
     local result=""
 
     while true; do
         if [[ -n "$default" ]]; then
-            echo -en "${ORANGE}▸${RESET} ${WHITE}${prompt}${RESET} [${ORANGE}${default}${RESET}]: "
+            echo -en "${ORANGE}▸${RESET} ${WHITE}${prompt}${RESET} [${ORANGE}${default}${RESET}]: " >&2
         else
-            echo -en "${ORANGE}▸${RESET} ${WHITE}${prompt}${RESET}: "
+            echo -en "${ORANGE}▸${RESET} ${WHITE}${prompt}${RESET}: " >&2
         fi
         read -r result
 
@@ -134,7 +138,7 @@ required_input() {
         fi
 
         if [[ -n "$result" ]]; then
-            echo "$result"
+            printf -v "$varname" '%s' "$result"
             return 0
         fi
 
@@ -144,13 +148,14 @@ required_input() {
 
 password_input() {
     local prompt="$1"
+    local varname="$2"
     local pass1=""
     local pass2=""
 
     while true; do
-        echo -en "${ORANGE}▸${RESET} ${WHITE}${prompt}${RESET}: "
+        echo -en "${ORANGE}▸${RESET} ${WHITE}${prompt}${RESET}: " >&2
         read -rs pass1
-        echo ""
+        echo "" >&2
 
         if [[ -z "$pass1" ]]; then
             warning "Password cannot be empty."
@@ -162,16 +167,16 @@ password_input() {
             continue
         fi
 
-        echo -en "${ORANGE}▸${RESET} ${WHITE}Confirm password${RESET}: "
+        echo -en "${ORANGE}▸${RESET} ${WHITE}Confirm password${RESET}: " >&2
         read -rs pass2
-        echo ""
+        echo "" >&2
 
         if [[ "$pass1" != "$pass2" ]]; then
             warning "Passwords do not match. Please try again."
             continue
         fi
 
-        echo "$pass1"
+        printf -v "$varname" '%s' "$pass1"
         return 0
     done
 }
@@ -179,6 +184,7 @@ password_input() {
 ask_yes_no() {
     local prompt="$1"
     local default="${2:-y}"
+    local varname="$3"
     local result=""
 
     if [[ "$default" == "y" ]]; then
@@ -188,7 +194,7 @@ ask_yes_no() {
     fi
 
     while true; do
-        echo -en "${ORANGE}▸${RESET} ${WHITE}${prompt}${RESET} [${ORANGE}${hint}${RESET}]: "
+        echo -en "${ORANGE}▸${RESET} ${WHITE}${prompt}${RESET} [${ORANGE}${hint}${RESET}]: " >&2
         read -r result
 
         if [[ -z "$result" ]]; then
@@ -196,8 +202,8 @@ ask_yes_no() {
         fi
 
         case "${result,,}" in
-            y|yes) echo "y"; return 0 ;;
-            n|no)  echo "n"; return 0 ;;
+            y|yes) printf -v "$varname" '%s' "y"; return 0 ;;
+            n|no)  printf -v "$varname" '%s' "n"; return 0 ;;
             *) warning "Please answer y or n." ;;
         esac
     done
@@ -464,7 +470,7 @@ gather_input() {
 
     # FQDN
     while true; do
-        FQDN=$(required_input "Panel FQDN (domain name or IP address)" "")
+        required_input "Panel FQDN (domain name or IP address)" "" FQDN
         if validate_fqdn "$FQDN"; then
             break
         fi
@@ -474,7 +480,7 @@ gather_input() {
 
     # Timezone
     while true; do
-        TIMEZONE=$(required_input "Timezone" "Europe/Moscow")
+        required_input "Timezone" "Europe/Moscow" TIMEZONE
         if validate_timezone "$TIMEZONE"; then
             break
         fi
@@ -487,7 +493,7 @@ gather_input() {
 
     # Admin Email
     while true; do
-        ADMIN_EMAIL=$(required_input "Admin email address" "")
+        required_input "Admin email address" "" ADMIN_EMAIL
         if validate_email "$ADMIN_EMAIL"; then
             break
         fi
@@ -497,7 +503,7 @@ gather_input() {
 
     # Admin Username
     while true; do
-        ADMIN_USER=$(required_input "Admin username" "admin")
+        required_input "Admin username" "admin" ADMIN_USER
         if validate_username "$ADMIN_USER"; then
             break
         fi
@@ -506,15 +512,15 @@ gather_input() {
     echo ""
 
     # Admin First Name
-    ADMIN_FIRST=$(required_input "Admin first name" "Admin")
+    required_input "Admin first name" "Admin" ADMIN_FIRST
     echo ""
 
     # Admin Last Name
-    ADMIN_LAST=$(required_input "Admin last name" "User")
+    required_input "Admin last name" "User" ADMIN_LAST
     echo ""
 
     # Admin Password
-    ADMIN_PASS=$(password_input "Admin password (min 8 characters)")
+    password_input "Admin password (min 8 characters)" ADMIN_PASS
     echo ""
 
     print_header "Email & SSL"
@@ -522,7 +528,7 @@ gather_input() {
 
     # Let's Encrypt / Panel Email
     while true; do
-        LE_EMAIL=$(required_input "Email for Let's Encrypt / Panel notifications" "$ADMIN_EMAIL")
+        required_input "Email for Let's Encrypt / Panel notifications" "$ADMIN_EMAIL" LE_EMAIL
         if validate_email "$LE_EMAIL"; then
             break
         fi
@@ -535,7 +541,7 @@ gather_input() {
 
     # Database Name
     while true; do
-        DB_NAME=$(required_input "MySQL database name" "panel")
+        required_input "MySQL database name" "panel" DB_NAME
         if validate_db_name "$DB_NAME"; then
             break
         fi
@@ -545,7 +551,7 @@ gather_input() {
 
     # Database Username
     while true; do
-        DB_USER=$(required_input "MySQL username" "pterodactyl")
+        required_input "MySQL username" "pterodactyl" DB_USER
         if validate_db_name "$DB_USER"; then
             break
         fi
@@ -558,9 +564,9 @@ gather_input() {
     auto_pass="$(gen_passwd 32)"
     echo -e "${ORANGE}▸${RESET} ${WHITE}Auto-generated MySQL password:${RESET} ${GREEN}${auto_pass}${RESET}"
     local customize_pw
-    customize_pw=$(ask_yes_no "Would you like to set a custom MySQL password instead?" "n")
+    ask_yes_no "Would you like to set a custom MySQL password instead?" "n" customize_pw
     if [[ "$customize_pw" == "y" ]]; then
-        DB_PASS=$(password_input "MySQL password (min 8 characters)")
+        password_input "MySQL password (min 8 characters)" DB_PASS
     else
         DB_PASS="$auto_pass"
     fi
@@ -571,27 +577,27 @@ gather_input() {
 
     # Firewall
     local fw_answer
-    fw_answer=$(ask_yes_no "Configure firewall (UFW/firewalld)?" "y")
+    ask_yes_no "Configure firewall (UFW/firewalld)?" "y" fw_answer
     [[ "$fw_answer" == "y" ]] && CONFIGURE_FW="true"
     echo ""
 
     # SSL with Let's Encrypt
     local ssl_answer
-    ssl_answer=$(ask_yes_no "Configure SSL with Let's Encrypt?" "y")
+    ask_yes_no "Configure SSL with Let's Encrypt?" "y" ssl_answer
     if [[ "$ssl_answer" == "y" ]]; then
         CONFIGURE_SSL="true"
         ASSUME_SSL="true"
     else
         echo ""
         local assume_answer
-        assume_answer=$(ask_yes_no "Assume SSL (e.g., behind a reverse proxy)?" "n")
+        ask_yes_no "Assume SSL (e.g., behind a reverse proxy)?" "n" assume_answer
         [[ "$assume_answer" == "y" ]] && ASSUME_SSL="true"
     fi
     echo ""
 
     # Telemetry
     local tele_answer
-    tele_answer=$(ask_yes_no "Enable Pterodactyl telemetry?" "y")
+    ask_yes_no "Enable Pterodactyl telemetry?" "y" tele_answer
     [[ "$tele_answer" == "n" ]] && ENABLE_TELEMETRY="false"
     echo ""
 }
@@ -622,7 +628,7 @@ show_summary() {
 
     echo ""
     local confirm
-    confirm=$(ask_yes_no "Proceed with installation?" "y")
+    ask_yes_no "Proceed with installation?" "y" confirm
     if [[ "$confirm" != "y" ]]; then
         echo -e "${YELLOW}Installation cancelled by user.${RESET}"
         exit 0
