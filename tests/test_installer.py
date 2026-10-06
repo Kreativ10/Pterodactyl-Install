@@ -43,6 +43,7 @@ class InstallerTests(unittest.TestCase):
 
     def test_os_matrix_and_arch_without_version(self):
         cases = [('ubuntu', '22.04', 'debian', 'www-data'), ('ubuntu', '24.04', 'debian', 'www-data'),
+                 ('ubuntu', '26.04', 'debian', 'www-data'),
                  ('debian', '11', 'debian', 'www-data'), ('debian', '12', 'debian', 'www-data'), ('debian', '13', 'debian', 'www-data'),
                  ('almalinux', '8.10', 'rhel', 'nginx'), ('almalinux', '9.7', 'rhel', 'nginx'),
                  ('rocky', '8.10', 'rhel', 'nginx'), ('rocky', '9.6', 'rhel', 'nginx'),
@@ -53,9 +54,43 @@ class InstallerTests(unittest.TestCase):
                 with self.subTest(os_id=os_id, version=version):
                     fixture.write_text(f'ID={os_id}\n'+(f'VERSION_ID={version}\n' if version else ''))
                     self.bash(f'detect_os "$FIXTURE"; [[ "$OS_FAMILY" == {family} && "$WEBSERVER_USER" == {user} && "$PANEL_PHP_ENDPOINT" == unix:/run/pterodactyl-php/panel.sock ]]', env={'FIXTURE': str(fixture)})
-            for os_id, version in [('ubuntu', '20.04'), ('almalinux', '10'), ('debian', '10'), ('alpine', '3.23')]:
+            for os_id, version in [('ubuntu', '20.04'), ('ubuntu', '26.10'), ('ubuntu', '26.01'),
+                                   ('almalinux', '10'), ('debian', '10'), ('alpine', '3.23')]:
                 fixture.write_text(f'ID={os_id}\nVERSION_ID={version}\n')
                 self.bash('detect_os "$FIXTURE"', success=False, env={'FIXTURE': str(fixture)})
+
+    def test_ubuntu_26_uses_sury_instead_of_unsupported_ppa(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.bash('''
+OS_ID=ubuntu; OS_VERSION=26.04; OS_CODENAME=resolute
+INSTALL_TMP_DIR="$DIRECTORY"
+install_packages() { printf 'packages: %s\\n' "$*"; }
+add-apt-repository() { printf 'unexpected PPA\\n'; return 99; }
+curl() { printf 'download: %s\\n' "$*"; return 42; }
+add_php_repo_debian
+''', success=False, env={'DIRECTORY': directory})
+        self.assertEqual(result.returncode, 42, result.stdout + result.stderr)
+        self.assertIn('https://packages.sury.org/debsuryorg-archive-keyring.deb', result.stdout)
+        self.assertNotIn('unexpected PPA', result.stdout)
+
+    def test_ubuntu_24_uses_native_php_repository(self):
+        self.bash('''
+OS_ID=ubuntu; OS_VERSION=24.04
+install_packages() { return 99; }
+add-apt-repository() { return 99; }
+curl() { return 99; }
+add_php_repo_debian
+''')
+
+    def test_ubuntu_22_keeps_php_ppa(self):
+        result = self.bash('''
+OS_ID=ubuntu; OS_VERSION=22.04
+install_packages() { printf 'packages: %s\\n' "$*"; }
+add-apt-repository() { printf 'PPA: %s\\n' "$*"; }
+curl() { return 99; }
+add_php_repo_debian
+''')
+        self.assertIn('ppa:ondrej/php', result.stdout)
 
     def test_ipv4_fqdn_and_injection_validation(self):
         self.bash('validate_fqdn panel.example.com; validate_fqdn 192.0.2.1; validate_bind_address 0.0.0.0')

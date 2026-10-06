@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: ['ubuntu:24.04', 'debian:13', 'almalinux:8', 'almalinux:9', 'archlinux:base']
+        image: ['ubuntu:24.04', 'ubuntu:26.04', 'debian:13', 'almalinux:8', 'almalinux:9', 'archlinux:base']
     steps:
       - uses: actions/checkout@v4
       - name: Install and exercise real panel dependencies in a disposable container

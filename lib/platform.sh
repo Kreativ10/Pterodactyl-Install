@@ -24,8 +24,9 @@ detect_os() {
     NGINX_AVAILABLE_DIR=/etc/nginx/sites-available
     NGINX_ENABLED_DIR=/etc/nginx/sites-enabled
     case "$OS_ID:$OS_MAJOR" in
-        ubuntu:22|ubuntu:24)
-            [[ "$OS_VERSION" == 22.04 || "$OS_VERSION" == 24.04 ]] || error_exit "Unsupported Ubuntu version: $OS_VERSION"
+        ubuntu:22|ubuntu:24|ubuntu:26)
+            [[ "$OS_VERSION" == 22.04 || "$OS_VERSION" == 24.04 || "$OS_VERSION" == 26.04 ]] || \
+                error_exit "Unsupported Ubuntu version: $OS_VERSION"
             OS_FAMILY=debian ;;
         debian:11|debian:12|debian:13) OS_FAMILY=debian ;;
         almalinux:8|almalinux:9|rocky:8|rocky:9|rhel:8|rhel:9|centos:9)
@@ -85,15 +86,17 @@ detect_panel_php_runtime() {
 
 add_php_repo_debian() {
     [[ "$OS_ID:$OS_VERSION" != ubuntu:24.04 ]] || return 0
-    if [[ "$OS_ID" == ubuntu ]]; then
+    if [[ "$OS_ID:$OS_VERSION" == ubuntu:22.04 ]]; then
         install_packages software-properties-common
         LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
     else
+        # Ubuntu 26.04 ships PHP 8.5. Sury supplies PHP 8.3 for resolute,
+        # while the older Launchpad PPA has no packages for that release.
+        [[ "$OS_CODENAME" =~ ^[a-z]+$ ]] || error_exit "Missing or invalid VERSION_CODENAME."
         local keyring
         keyring="$(mktemp "${INSTALL_TMP_DIR}/sury.XXXXXX.deb")"
         curl -fsSL https://packages.sury.org/debsuryorg-archive-keyring.deb -o "$keyring"
         dpkg -i "$keyring"
-        [[ "$OS_CODENAME" =~ ^[a-z]+$ ]] || error_exit "Missing Debian VERSION_CODENAME."
         printf 'deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ %s main\n' \
             "$OS_CODENAME" > /etc/apt/sources.list.d/sury-php.list
     fi

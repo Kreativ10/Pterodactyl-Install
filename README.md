@@ -50,15 +50,19 @@ sudo bash uninstall.sh
 
 | ОС | Версии | PHP / особенности |
 | --- | --- | --- |
-| Ubuntu | 22.04, 24.04 | PHP 8.3; Ondřej PPA на 22.04, штатные пакеты на 24.04 |
+| Ubuntu | 22.04, 24.04, 26.04 LTS | PHP 8.3: Ondřej PPA на 22.04, штатные пакеты на 24.04, Sury на 26.04 |
 | Debian | 11, 12, 13 | PHP 8.3 из Sury, штатные MariaDB и Redis |
 | AlmaLinux / Rocky Linux | 8, 9 | EPEL, PowerTools/CRB, Remi PHP 8.3; SELinux сохраняется |
 | RHEL | 8, 9 | Remi/EPEL; требуется активная подписка с доступным CodeReady Builder |
 | CentOS Stream | 9 | CRB/EPEL/Remi |
 | Arch Linux | rolling, x86_64 | Официальные `php-legacy` 8.3, `php-legacy-fpm`, Valkey, MariaDB |
 
-Ubuntu, Debian и RHEL/Rocky/Alma 8–9 перечислены в
+Ubuntu 22.04/24.04, Debian и RHEL/Rocky/Alma 8–9 перечислены в
 [официальной документации панели](https://github.com/pterodactyl/documentation/blob/master/panel/1.0/getting_started.md).
+Ubuntu 26.04 — дополнительная поддержка установщика. Вместо штатного PHP 8.5
+устанавливается PHP 8.3 из [Sury для `resolute`](https://packages.sury.org/php/dists/resolute/)
+с отдельным подписанным keyring; CLI, FPM, очередь и cron используют PHP 8.3.
+Ubuntu 26.10 и другие промежуточные версии не входят в матрицу.
 Arch — дополнительная реализация установщика, **не официальная платформа поддержки Pterodactyl**.
 Она использует [php-legacy](https://archlinux.org/packages/extra/x86_64/php-legacy/)
 из Extra и Valkey через совместимый Redis-протокол. CLI, Composer, FPM, cron
@@ -111,7 +115,8 @@ Arch Linux ARM этими пакетами: матрица Arch проверяе
 
 ```bash
 make check                     # bash -n, ShellCheck, Python unittest
-make integration               # реальные пакеты и панель в трёх Docker-контейнерах
+make integration               # реальные пакеты и панель в четырёх Docker-контейнерах
+bash tests/run-integration.sh ubuntu:26.04
 bash tests/run-integration.sh debian:13 almalinux:8
 ```
 

@@ -62,9 +62,12 @@
 
 ## Поддержка новых платформ
 
-Новый `lib/platform.sh` содержит явную матрицу Ubuntu 22.04/24.04,
+Новый `lib/platform.sh` содержит явную матрицу Ubuntu 22.04/24.04/26.04,
 Debian 11/12/13, AlmaLinux/Rocky/RHEL 8/9, CentOS Stream 9, Arch Linux.
 CLI, Composer, FPM, очередь и cron используют единый выбранный PHP 8.3.
+Для Ubuntu 26.04 (`resolute`) подключается подписанный репозиторий Sury:
+штатный PHP 8.5 не выбирается, а прежний Launchpad PPA не содержит `resolute`.
+Ubuntu 24.04 сохраняет штатные пакеты, Ubuntu 22.04 — прежний PPA.
 Arch использует официальные php-legacy, MariaDB и Valkey; PHP extensions
 включаются явно, их `.ini` читаются пользователем очереди. Для nginx добавлен
 include conf.d, MariaDB инициализируется только при отсутствии системных таблиц.
@@ -82,6 +85,7 @@ Laravel directories и socket directory **до** запуска FPM.
 | Контейнер | PHP | Результат |
 | --- | --- | --- |
 | Ubuntu 24.04 | 8.3.6 (пакет с обновлениями Ubuntu) | PASS |
+| Ubuntu 26.04 | 8.3.35, Sury | PASS |
 | Debian 13 | 8.3.35, Sury | PASS |
 | Arch Linux (образ 20261004) | 8.3.35, php-legacy | PASS |
 | AlmaLinux 8.10 | 8.3.35, Remi | PASS |
@@ -93,7 +97,12 @@ literal DB password и выключение telemetry. На AlmaLinux финал
 использовал уже установленные настоящие пакеты в тех же изолированных контейнерах;
 тестовые процессы перезапущены, тестовые application DB/files созданы заново.
 
-- `make check`: Bash syntax, ShellCheck и 35 регрессионных тестов — PASS.
+- `make check`: Bash syntax, ShellCheck и 38 регрессионных тестов — PASS.
+- Ubuntu 26.04: `panel.sh --check` и `bash tests/run-integration.sh ubuntu:26.04`
+  — PASS. Проверены настоящие зависимости, migrations/admin/DB/queue/cron,
+  HTTP панели и phpMyAdmin. `systemd` в контейнере заменён прямым запуском служб.
+- Тесты определения ОС принимают 26.04 и отклоняют 26.10/26.01; выбор PHP repo
+  проверяет Sury для 26.04, штатные пакеты для 24.04 и PPA для 22.04.
 - Установочный диалог, SIGPIPE, отсутствие VERSION_ID, ошибочные IP/CIDR,
   сохранность существующего APP_KEY, literal passwords, порядок ACME/firewall,
   ошибки Artisan/package manager/firewall, cron и CLI покрыты тестами.
@@ -133,5 +142,7 @@ SMTP, Wings с настоящим node config/Docker/game server, ARM64.
 - [Pterodactyl requirements / OS matrix](https://github.com/pterodactyl/documentation/blob/master/panel/1.0/getting_started.md)
 - [EL dependency/FPM setup](https://github.com/pterodactyl/documentation/blob/master/community/installation-guides/panel/centos8.md)
 - [Debian 11/12/13 setup](https://github.com/pterodactyl/documentation/blob/master/community/installation-guides/panel/debian.md)
+- [Sury repository setup](https://packages.sury.org/php/README.txt)
+- [Sury packages for Ubuntu 26.04 resolute](https://packages.sury.org/php/dists/resolute/)
 - [Arch php-legacy](https://archlinux.org/packages/extra/x86_64/php-legacy/)
 - [Upstream Composer requirements](https://github.com/pterodactyl/panel/blob/1.0-develop/composer.json)
