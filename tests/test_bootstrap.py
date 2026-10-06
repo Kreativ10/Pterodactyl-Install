@@ -1,10 +1,13 @@
 """Exercise GitHub bootstrap with local archives and no system installation."""
+import errno
+import fcntl
 import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
 import tarfile
+import termios
 import tempfile
 import unittest
 
@@ -101,10 +104,10 @@ printf 'called\\n' > "$BOOTSTRAP_SUDO_LOG"
         self.assertGreaterEqual(len(commands), 2)
         return ['bash', '-c', commands[0]]
 
-    def test_readme_one_command_downloads_and_runs_panel(self):
+    def test_readme_one_command_leaves_action_selection_to_menu(self):
         result = self.run_bootstrap(command=self.readme_command())
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.arguments.read_text(), '--action\npanel\n')
+        self.assertEqual(self.arguments.read_text().splitlines(), [''])
         self.assertEqual(self.sudo_log.exists(), os.geteuid() != 0)
         self.assertFalse(Path(self.entrypoint.read_text().strip()).exists())
 
@@ -112,8 +115,69 @@ printf 'called\\n' > "$BOOTSTRAP_SUDO_LOG"
         result = self.run_bootstrap('--check', '--action', 'wings', 'argument with spaces')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.arguments.read_text().splitlines(),
-                         ['--action', 'panel', '--check', '--action', 'wings', 'argument with spaces'])
+                         ['--check', '--action', 'wings', 'argument with spaces'])
         self.assertFalse(self.sudo_log.exists())
+
+    def test_explicit_actions_forwarded_unchanged(self):
+        for action in ('panel', 'wings', 'phpmyadmin', 'uninstall'):
+            with self.subTest(action=action):
+                result = self.run_bootstrap('--action', action)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.arguments.read_text().splitlines(), ['--action', action])
+
+    def test_readme_pipeline_opens_menu_and_reads_choice_from_terminal(self):
+        for module in MODULES:
+            shutil.copyfile(ROOT / module, self.repository / module)
+        shutil.copyfile(ROOT / 'panel.sh', self.repository / 'toolkit.sh')
+        (self.repository / 'panel.sh').write_text('''#!/usr/bin/env bash
+source "$(dirname -- "$0")/toolkit.sh"
+parse_cli_args "$@"
+exec < /dev/tty
+[[ -n "$MAIN_ACTION" ]] || choose_main_action
+printf '%s\\n' "$MAIN_ACTION" > "$BOOTSTRAP_ARGUMENTS"
+''')
+        self.pack()
+
+        def connect_terminal():
+            os.setsid()
+            fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+
+        master, slave = os.openpty()
+        try:
+            process = subprocess.Popen(
+                self.readme_command(), env=self.env, stdin=slave, stdout=slave,
+                stderr=slave, preexec_fn=connect_terminal,
+            )
+        finally:
+            os.close(slave)
+        try:
+            os.write(master, b'2\n')
+            try:
+                status = process.wait(timeout=10)
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+            output = bytearray()
+            while True:
+                try:
+                    chunk = os.read(master, 4096)
+                except OSError as error:
+                    if error.errno != errno.EIO:
+                        raise
+                    break
+                if not chunk:
+                    break
+                output.extend(chunk)
+        finally:
+            os.close(master)
+
+        self.assertEqual(status, 0, output.decode())
+        for label in ('Main Menu', 'Install Pterodactyl Panel', 'Install Pterodactyl Wings',
+                      'Install phpMyAdmin', 'Uninstall Components', 'Exit'):
+            self.assertIn(label, output.decode())
+        self.assertEqual(self.arguments.read_text(), 'wings\n')
+        self.assertEqual(list(self.work.iterdir()), [])
 
     def test_help_does_not_require_sudo(self):
         result = self.run_bootstrap('--help')

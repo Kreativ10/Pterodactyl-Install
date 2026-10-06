@@ -13,7 +13,8 @@ bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/Kreativ10/Pter
 ```
 
 Команда скачивает установщик и весь репозиторий из ветки `main`, затем
-открывает мастер установки **панели**. От root запускается напрямую, для
+открывает **меню действий**: установка панели, Wings, phpMyAdmin,
+удаление компонентов или выход. От root запускается напрямую, для
 обычного пользователя использует `sudo`. Нужны `curl` и `tar`.
 При ошибке загрузки установка не начинается; временная копия репозитория
 удаляется после завершения. Сама панель скачивается из официального
@@ -25,8 +26,14 @@ GitHub release Pterodactyl во время установки.
 bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/Kreativ10/Pterodactyl-Install/main/install.sh | bash -s -- --check'
 ```
 
-Аргументы после `bash -s --` передаются установщику: например,
-`--action wings` или `--action phpmyadmin` выбирает другой компонент.
+Аргументы после `bash -s --` передаются установщику. Явный `--action panel`,
+`--action wings`, `--action phpmyadmin` или `--action uninstall` пропускает
+главное меню и запускает мастер выбранного действия. Например, для панели:
+
+```bash
+bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/Kreativ10/Pterodactyl-Install/main/install.sh | bash -s -- --action panel'
+```
+
 Один скачанный `panel.sh` не работает без модулей `lib/`; используйте
 `install.sh` или клонируйте весь репозиторий.
 

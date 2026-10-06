@@ -51,7 +51,7 @@ main() (
         fi
     done
 
-    "${runner[@]}" "$workdir/source/panel.sh" --action panel "$@"
+    "${runner[@]}" "$workdir/source/panel.sh" "$@"
 )
 
 main "$@"
